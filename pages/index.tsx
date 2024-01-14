@@ -1,30 +1,47 @@
-import { Center, Box, Heading } from "@chakra-ui/react";
+import { Center, Box, Heading, Stack, Spacer } from "@chakra-ui/react";
 import type { NextPage } from "next";
 import Head from "next/head";
-import { AppBar } from "../components/AppBar";
-import { MovieList } from "../components/MovieList";
-import { Form } from "../components/Form";
+
+import NavBar from "../components/NavBar";
 import styles from "../styles/Home.module.css";
+import Disconnected from "@/components/Disconnected";
+import { useWallet } from "@solana/wallet-adapter-react";
+import Connected from "@/components/Connected";
 
 const Home: NextPage = () => {
+  const { connected } = useWallet();
+
   return (
     <div className={styles.App}>
       <Head>
-        <title>Movie Reviews</title>
+        <title>Buildoors</title>
+        <meta name="The NFT Collection for Buildoors" />
+        <link rel="icon" href="/favicon.ico" />
       </Head>
-      <AppBar />
-      <Center>
-        <Box>
-          <Heading as="h1" size="l" color="white" ml={4} mt={8}>
-            Add a review
-          </Heading>
-          <Form />
-          <Heading as="h1" size="l" color="white" ml={4} mt={8}>
-            Existing Reviews
-          </Heading>
-          <MovieList />
-        </Box>
-      </Center>
+
+      <Box
+        w="full"
+        h="calc(100vh)"
+        bgImage={"url(/home-background.svg)"}
+        backgroundPosition="center"
+      >
+        <Stack w="full" h="calc(100vh)" justify="center">
+          <NavBar />
+          <Spacer />
+          <Center>{connected ? <Connected /> : <Disconnected />}</Center>
+          <Center>
+            <Box marginBottom={4} color={"white"}>
+              <a
+                href="https://twitter.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                built with _
+              </a>
+            </Box>
+          </Center>
+        </Stack>
+      </Box>
     </div>
   );
 };

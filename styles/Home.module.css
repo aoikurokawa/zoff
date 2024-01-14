@@ -31,3 +31,11 @@
   color: white;
   padding-top: 50px;
 }
+
+.container {
+  background-color: #1f1f1f;
+}
+
+.wallet-adapter-button-trigger {
+  background-color: #833bbe;
+}
