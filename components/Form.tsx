@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { Movie } from "../models/Movie";
+import StudentIntro from "@/models/StudentIntor";
 import { useState } from "react";
 import {
   Box,
@@ -17,34 +17,33 @@ import {
 import * as web3 from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 
-const MOVIE_REVIEW_PROGRAM_ID = "CenYq6bDRB7p73EjsPEpiYN7uveyPUTdXkDkgUduboaN";
+const STUDENT_INTRO_PROGRAM_ID = "HdE95RSVsdb315jfJtaykXhXY478h53X6okDupVfY9yf";
 
 export const Form: FC = () => {
-  const [title, setTitle] = useState("");
-  const [rating, setRating] = useState(0);
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState("");
+  const [message, setMessage] = useState("");
 
   const { connection } = useConnection();
   const { publicKey, sendTransaction } = useWallet();
 
   const handleSubmit = (event: any) => {
     event.preventDefault();
-    const movie = new Movie(title, rating, description);
-    handleTransactionSubmit(movie);
+    const studentIntro = new StudentIntro(name, message);
+    handleTransactionSubmit(studentIntro);
   };
 
-  const handleTransactionSubmit = async (movie: Movie) => {
+  const handleTransactionSubmit = async (studentIntro: StudentIntro) => {
     if (!publicKey) {
       alert("Please connect your wallet!");
       return;
     }
 
-    const buffer = movie.serialize();
+    const buffer = studentIntro.serialize();
     const transaction = new web3.Transaction();
 
     const [pda] = await web3.PublicKey.findProgramAddress(
-      [publicKey.toBuffer(), Buffer.from(movie.title)], // new TextEncoder().encode(movie.title)],
-      new web3.PublicKey(MOVIE_REVIEW_PROGRAM_ID)
+      [publicKey.toBuffer()],
+      new web3.PublicKey(STUDENT_INTRO_PROGRAM_ID)
     );
 
     const instruction = new web3.TransactionInstruction({
@@ -66,7 +65,7 @@ export const Form: FC = () => {
         },
       ],
       data: buffer,
-      programId: new web3.PublicKey(MOVIE_REVIEW_PROGRAM_ID),
+      programId: new web3.PublicKey(STUDENT_INTRO_PROGRAM_ID),
     });
 
     transaction.add(instruction);
@@ -96,37 +95,25 @@ export const Form: FC = () => {
     >
       <form onSubmit={handleSubmit}>
         <FormControl isRequired>
-          <FormLabel color="gray.200">Movie Title</FormLabel>
+          <FormLabel color="gray.200">What do we call you?</FormLabel>
           <Input
-            id="title"
+            id="name"
             color="gray.400"
-            onChange={(event) => setTitle(event.currentTarget.value)}
+            onChange={(event) => setName(event.currentTarget.value)}
           />
         </FormControl>
         <FormControl isRequired>
-          <FormLabel color="gray.200">Add your review</FormLabel>
+          <FormLabel color="gray.200">
+            What brings you to Solana, friend?
+          </FormLabel>
           <Textarea
-            id="review"
+            id="message"
             color="gray.400"
-            onChange={(event) => setDescription(event.currentTarget.value)}
+            onChange={(event) => setMessage(event.currentTarget.value)}
           />
-        </FormControl>
-        <FormControl isRequired>
-          <FormLabel color="gray.200">Rating</FormLabel>
-          <NumberInput
-            max={5}
-            min={1}
-            onChange={(valueString) => setRating(parseInt(valueString))}
-          >
-            <NumberInputField id="amount" color="gray.400" />
-            <NumberInputStepper color="gray.400">
-              <NumberIncrementStepper />
-              <NumberDecrementStepper />
-            </NumberInputStepper>
-          </NumberInput>
         </FormControl>
         <Button width="full" mt={4} type="submit">
-          Submit Review
+          Submit
         </Button>
       </form>
     </Box>
