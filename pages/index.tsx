@@ -1,53 +1,30 @@
-import { NextPage } from "next";
-import { useState } from "react";
-import {
-  Connection,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  clusterApiUrl,
-} from "@solana/web3.js";
-
+import { Center, Box, Heading } from "@chakra-ui/react";
+import type { NextPage } from "next";
+import Head from "next/head";
+import { AppBar } from "../components/AppBar";
+import { MovieList } from "../components/MovieList";
+import { Form } from "../components/Form";
 import styles from "../styles/Home.module.css";
-import AddressForm from "@/components/AddressForm";
 
 const Home: NextPage = () => {
-  const [balance, setBalance] = useState(0);
-  const [address, setAddress] = useState("");
-  const [accountInfo, setAccountInfo] = useState("");
-
-  const addressSubmittedHandler = (address: string) => {
-    try {
-      const key = new PublicKey(address);
-      setAddress(key.toBase58());
-
-      const connection = new Connection(clusterApiUrl("devnet"));
-      connection.getBalance(key).then((balance) => {
-        setBalance(balance / LAMPORTS_PER_SOL);
-      });
-
-      connection.getAccountInfo(key).then((info) => {
-        if (info?.executable) {
-          setAccountInfo("Yes");
-        } else {
-          setAccountInfo("Nope");
-        }
-      });
-    } catch (err) {
-      setAddress("");
-      setBalance(0);
-      alert(err);
-    }
-  };
-
   return (
     <div className={styles.App}>
-      <header className={styles.AppHeader}>
-        <p>Start Your Solana Journey</p>
-        <AddressForm handler={addressSubmittedHandler} />
-        <p>{`Address: ${address}`}</p>
-        <p>{`Balance: ${balance} SOL`}</p>
-        <p>{`Is it executable? ${accountInfo}`}</p>
-      </header>
+      <Head>
+        <title>Movie Reviews</title>
+      </Head>
+      <AppBar />
+      <Center>
+        <Box>
+          <Heading as="h1" size="l" color="white" ml={4} mt={8}>
+            Add a review
+          </Heading>
+          <Form />
+          <Heading as="h1" size="l" color="white" ml={4} mt={8}>
+            Existing Reviews
+          </Heading>
+          <MovieList />
+        </Box>
+      </Center>
     </div>
   );
 };
