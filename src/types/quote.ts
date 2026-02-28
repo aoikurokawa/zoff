@@ -1,5 +1,5 @@
 export interface QuoteResult {
-  platform: "jupiter" | "dflow" | "titan";
+  platform: "jupiter" | "raydium" | "dflow" | "titan";
   inputAmount: string;
   outputAmount: string;
   priceImpactPct: string;
