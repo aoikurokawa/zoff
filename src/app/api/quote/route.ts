@@ -52,6 +52,63 @@ async function fetchJupiterQuote(
   }
 }
 
+async function fetchRaydiumQuote(
+  inputMint: string,
+  outputMint: string,
+  amount: string,
+  slippageBps: string
+): Promise<QuoteResult> {
+  try {
+    const url = new URL(
+      "https://transaction-v1.raydium.io/compute/swap-base-in"
+    );
+    url.searchParams.set("inputMint", inputMint);
+    url.searchParams.set("outputMint", outputMint);
+    url.searchParams.set("amount", amount);
+    url.searchParams.set("slippageBps", slippageBps);
+    url.searchParams.set("txVersion", "V0");
+
+    const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return {
+        platform: "raydium",
+        inputAmount: amount,
+        outputAmount: "0",
+        priceImpactPct: "0",
+        route: "",
+        error: `HTTP ${res.status}: ${text}`,
+      };
+    }
+
+    const data = await res.json();
+    const routeLabels =
+      data.data?.routePlan?.map(
+        (step: { poolInfoList?: { poolType?: string }[] }) =>
+          step.poolInfoList?.[0]?.poolType ?? "unknown"
+      ) ?? [];
+
+    return {
+      platform: "raydium",
+      inputAmount: data.data?.inputAmount ?? amount,
+      outputAmount: data.data?.outputAmount ?? "0",
+      priceImpactPct: data.data?.priceImpactPct?.toString() ?? "0",
+      route: routeLabels.join(" → ") || "direct",
+    };
+  } catch (err) {
+    return {
+      platform: "raydium",
+      inputAmount: amount,
+      outputAmount: "0",
+      priceImpactPct: "0",
+      route: "",
+      error: err instanceof Error ? err.message : "Unknown error",
+    };
+  }
+}
+
 async function fetchDflowQuote(
   inputMint: string,
   outputMint: string,
@@ -176,6 +233,7 @@ export async function GET(request: NextRequest) {
 
   const results = await Promise.all([
     fetchJupiterQuote(inputMint, outputMint, amount, slippageBps),
+    fetchRaydiumQuote(inputMint, outputMint, amount, slippageBps),
     fetchDflowQuote(inputMint, outputMint, amount, slippageBps),
     fetchTitanQuote(inputMint, outputMint, amount, slippageBps),
   ]);

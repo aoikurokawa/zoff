@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { QuoteResult, MINTS, DECIMALS } from "@/types/quote";
 
-type Direction = "sol-to-jitosol" | "jitosol-to-sol";
+const PriceChart = dynamic(() => import("@/components/PriceChart"), {
+  ssr: false,
+});
+
+const DEFAULT_AMOUNT = "1";
+const REFRESH_INTERVAL = 15000;
 
 function formatAmount(raw: string, decimals: number): string {
   if (!raw || raw === "0") return "0";
@@ -17,6 +23,8 @@ function platformColor(platform: string): string {
   switch (platform) {
     case "jupiter":
       return "text-green-400";
+    case "raydium":
+      return "text-cyan-400";
     case "dflow":
       return "text-blue-400";
     case "titan":
@@ -27,36 +35,18 @@ function platformColor(platform: string): string {
 }
 
 export default function Home() {
-  const [amount, setAmount] = useState("1");
-  const [direction, setDirection] = useState<Direction>("sol-to-jitosol");
   const [quotes, setQuotes] = useState<QuoteResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [fetched, setFetched] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const inputToken = direction === "sol-to-jitosol" ? "SOL" : "JitoSOL";
-  const outputToken = direction === "sol-to-jitosol" ? "JitoSOL" : "SOL";
-
-  async function handleFetchQuotes() {
-    const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) return;
-
-    const inputDecimals =
-      direction === "sol-to-jitosol" ? DECIMALS.SOL : DECIMALS.JitoSOL;
+  const fetchQuotes = useCallback(async () => {
     const rawAmount = BigInt(
-      Math.round(parsedAmount * 10 ** inputDecimals)
+      Math.round(parseFloat(DEFAULT_AMOUNT) * 10 ** DECIMALS.SOL)
     ).toString();
 
-    const inputMint =
-      direction === "sol-to-jitosol" ? MINTS.SOL : MINTS.JitoSOL;
-    const outputMint =
-      direction === "sol-to-jitosol" ? MINTS.JitoSOL : MINTS.SOL;
-
-    setLoading(true);
-    setFetched(false);
     try {
       const params = new URLSearchParams({
-        inputMint,
-        outputMint,
+        inputMint: MINTS.SOL,
+        outputMint: MINTS.JitoSOL,
         amount: rawAmount,
         slippageBps: "50",
       });
@@ -67,9 +57,14 @@ export default function Home() {
       setQuotes([]);
     } finally {
       setLoading(false);
-      setFetched(true);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchQuotes();
+    const interval = setInterval(fetchQuotes, REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchQuotes]);
 
   const validQuotes = quotes.filter((q) => !q.error);
   const bestOutput =
@@ -79,131 +74,83 @@ export default function Home() {
         )
       : null;
 
-  const outputDecimals =
-    direction === "sol-to-jitosol" ? DECIMALS.JitoSOL : DECIMALS.SOL;
-
   return (
-    <main className="max-w-2xl mx-auto px-4 py-12">
+    <main className="max-w-7xl mx-auto px-4 py-12">
       <h1 className="text-3xl font-bold text-center mb-2">Zoff</h1>
       <p className="text-gray-400 text-center mb-10">
-        Find the best route for trading JitoSOL
+        JitoSOL prices across DEXs
       </p>
 
-      <div className="bg-gray-900 rounded-xl p-6 mb-8 border border-gray-800">
-        <div className="flex items-center gap-4 mb-5">
-          <div className="flex-1">
-            <label className="block text-sm text-gray-400 mb-1">Amount</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-lg focus:outline-none focus:border-gray-500"
-              placeholder="1.0"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm text-gray-400 mb-1">
-              Direction
-            </label>
-            <button
-              onClick={() =>
-                setDirection((d) =>
-                  d === "sol-to-jitosol" ? "jitosol-to-sol" : "sol-to-jitosol"
-                )
-              }
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-lg hover:bg-gray-750 transition-colors cursor-pointer"
-            >
-              {inputToken} → {outputToken}
-            </button>
-          </div>
-        </div>
+      <PriceChart />
 
-        <button
-          onClick={handleFetchQuotes}
-          disabled={loading}
-          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg py-3 font-medium text-lg transition-colors cursor-pointer"
-        >
-          {loading ? "Fetching quotes..." : "Find Best Route"}
-        </button>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-300">
+          1 SOL → JitoSOL
+        </h2>
+        <span className="text-xs text-gray-500">
+          {loading ? "Refreshing..." : "Auto-refreshes every 15s"}
+        </span>
       </div>
 
-      {fetched && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-300 mb-4">Results</h2>
-
-          {quotes.length === 0 && (
-            <p className="text-gray-500 text-center py-8">
-              No quotes available.
-            </p>
-          )}
-
-          {quotes.map((q) => {
+      <div className="grid gap-3">
+        {loading && quotes.length === 0 ? (
+          <div className="text-gray-500 text-center py-12">
+            Loading prices...
+          </div>
+        ) : quotes.length === 0 ? (
+          <div className="text-gray-500 text-center py-12">
+            No quotes available.
+          </div>
+        ) : (
+          quotes.map((q) => {
             const isBest = bestOutput?.platform === q.platform && !q.error;
             return (
               <div
                 key={q.platform}
-                className={`bg-gray-900 rounded-xl p-5 border ${
+                className={`bg-gray-900 rounded-xl p-5 border flex items-center justify-between ${
                   isBest
                     ? "border-indigo-500 ring-1 ring-indigo-500/30"
                     : "border-gray-800"
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`font-semibold capitalize ${platformColor(
-                        q.platform
-                      )}`}
-                    >
-                      {q.platform}
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`font-semibold capitalize text-lg ${platformColor(
+                      q.platform
+                    )}`}
+                  >
+                    {q.platform}
+                  </span>
+                  {isBest && (
+                    <span className="text-xs bg-indigo-600/30 text-indigo-300 px-2 py-0.5 rounded-full">
+                      Best
                     </span>
-                    {isBest && (
-                      <span className="text-xs bg-indigo-600/30 text-indigo-300 px-2 py-0.5 rounded-full">
-                        Best
-                      </span>
-                    )}
-                  </div>
+                  )}
                   {q.error && (
-                    <span className="text-xs text-red-400">Error</span>
+                    <span className="text-xs text-red-400">Unavailable</span>
                   )}
                 </div>
 
                 {q.error ? (
-                  <p className="text-sm text-red-400/80">{q.error}</p>
+                  <span className="text-sm text-gray-600">--</span>
                 ) : (
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">
-                        You receive
-                      </span>
-                      <span className="text-lg font-mono">
-                        {formatAmount(q.outputAmount, outputDecimals)}{" "}
-                        {outputToken}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">
-                        Price impact
-                      </span>
-                      <span className="text-sm text-gray-300">
-                        {parseFloat(q.priceImpactPct).toFixed(4)}%
+                  <div className="text-right">
+                    <p className="text-lg font-mono">
+                      {formatAmount(q.outputAmount, DECIMALS.JitoSOL)} JitoSOL
+                    </p>
+                    <div className="flex items-center gap-3 justify-end text-sm text-gray-400">
+                      {q.route && <span>{q.route}</span>}
+                      <span>
+                        Impact: {parseFloat(q.priceImpactPct).toFixed(4)}%
                       </span>
                     </div>
-                    {q.route && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-400 text-sm">Route</span>
-                        <span className="text-sm text-gray-300">{q.route}</span>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
     </main>
   );
 }
